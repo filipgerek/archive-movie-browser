@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { browsesIndex, indexFilms, pageOf, PAGE, betterUpload } from './indexBrowse.js';
+import { browsesIndex, createIndexPager, indexFilms, pageOf, PAGE, betterUpload } from './indexBrowse.js';
 import { ALL_FILMS, betterCopy } from './archive.js';
 
 const index = {
@@ -61,6 +61,31 @@ test('pageOf slices 24 at a time and says when more remain', () => {
   const second = pageOf(list, 2);
   assert.deepEqual(second.movies.map(m => m.identifier), ['f24', 'f25', 'f26']);
   assert.ok(!second.more);
+});
+
+test('createIndexPager reuses the sorted list across pages and invalidates it when inputs change', () => {
+  const films = Object.fromEntries(Array.from({ length: PAGE + 1 }, (_, offset) => [
+    `film-${offset}`, { ...index.peewee, i: offset + 1, y: 1985 + offset, k: PAGE - offset },
+  ]));
+  const filters = { genre: 'Comedy', sort: 'downloads' };
+  const expected = indexFilms(films, filters);
+  let scans = 0;
+  const trackedIndex = new Proxy(films, {
+    ownKeys(target) {
+      scans += 1;
+      return Reflect.ownKeys(target);
+    },
+  });
+  const getPage = createIndexPager();
+
+  assert.deepEqual(getPage(trackedIndex, filters, 1), pageOf(expected, 1));
+  assert.deepEqual(getPage(trackedIndex, { ...filters }, 2), pageOf(expected, 2));
+  assert.equal(scans, 1);
+
+  const newFilters = { ...filters, sort: 'date desc' };
+  assert.deepEqual(getPage(trackedIndex, newFilters, 1), pageOf(indexFilms(films, newFilters), 1));
+  assert.equal(scans, 2);
+  assert.deepEqual(getPage(index, newFilters, 1), pageOf(indexFilms(index, newFilters), 1));
 });
 
 test("of two copies of one film, the one Archive.org's visitors chose plays", () => {

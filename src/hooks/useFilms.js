@@ -3,7 +3,7 @@ import archiveService, { runtimeFilter, betterCopy } from '../services/archive';
 import tmdbService from '../services/tmdb';
 import { postersFirst, oneCopyPerFilm, loadPosterIndex, withIndexedLength, isCartoonFor } from '../services/posterIndex';
 import { apiSort, orderBatch } from '../services/sorting';
-import { browsesIndex, indexFilms, pageOf } from '../services/indexBrowse';
+import { browsesIndex, createIndexPager } from '../services/indexBrowse';
 
 const FIRST = { from: 'archive', page: 1 };
 
@@ -20,6 +20,7 @@ export default function useFilms({ search, sort, genre, collection, decade, deca
 
   // Only the latest request may update state (older responses can arrive last)
   const latestRequest = useRef(0);
+  const indexPager = useRef(null);
   // Titles already shown, so the same film isn't repeated across batches
   const seenTitles = useRef(new Set());
   // Films (index ids) already shown: two uploads of one film get one card
@@ -45,8 +46,9 @@ export default function useFilms({ search, sort, genre, collection, decade, deca
       if (from === 'index') {
         const index = await loadPosterIndex();
         if (requestId !== latestRequest.current) return;
-        const all = indexFilms(index, { genre, decade, decadeTo, shorts: contentType === 'trailers', minRuntime, sort });
-        const { movies: batch, more } = pageOf(all, startPage);
+        indexPager.current ??= createIndexPager();
+        const filters = { genre, decade, decadeTo, shorts: contentType === 'trailers', minRuntime, sort };
+        const { movies: batch, more } = indexPager.current(index, filters, startPage);
         for (const movie of batch) seenFilms.current.add(index[movie.identifier].i);
         if (batch.length) {
           setMovies(prev => (append ? [...prev, ...batch] : batch));

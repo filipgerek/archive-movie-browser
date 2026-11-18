@@ -40,8 +40,6 @@ export const betterUpload = (a, b) => (isFeature(b) - isFeature(a)) || -byAudien
 
 // Every film of a genre the index knows, one upload per film, filtered like the Archive.org
 // list is and sorted the way the menu says.
-// ponytail: filters and sorts the whole index on every page; a few ms for 11k entries. Cache
-// per filter set if the index grows past ~50k.
 export function indexFilms(index, { genre, decade, decadeTo = null, shorts = false, minRuntime = 0, sort = 'downloads' }) {
   const best = new Map();
   const span = decadeYears(decade, decadeTo);
@@ -59,4 +57,20 @@ export function indexFilms(index, { genre, decade, decadeTo = null, shorts = fal
 export function pageOf(list, page) {
   const movies = list.slice((page - 1) * PAGE, page * PAGE);
   return { movies, more: page * PAGE < list.length };
+}
+
+export function createIndexPager() {
+  let cachedIndex;
+  let cachedFilters;
+  let list;
+  return (index, filters, page) => {
+    const { genre, decade, decadeTo, shorts, minRuntime, sort } = filters;
+    const values = [genre, decade, decadeTo, shorts, minRuntime, sort];
+    if (!cachedFilters || index !== cachedIndex || !values.every((value, position) => Object.is(value, cachedFilters[position]))) {
+      list = indexFilms(index, filters);
+      cachedIndex = index;
+      cachedFilters = values;
+    }
+    return pageOf(list, page);
+  };
 }
