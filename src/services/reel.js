@@ -1,6 +1,6 @@
 // Spin the reel: a random film the index is sure about, opened in the player.
-import { loadPosterIndex } from './posterIndex';
-import { rowFor } from './programme';
+import { loadPosterIndex } from './posterIndex.js';
+import { rowFor } from './programme.js';
 
 export const watchUrl = id => `/browse#${encodeURIComponent(id)}`;
 
